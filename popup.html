@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>TweetSync for Bluesky</title>
+  <style>
+    body {
+      width: 350px;
+      padding: 16px;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+    
+    h2 {
+      margin-top: 0;
+      margin-bottom: 16px;
+      font-size: 18px;
+      color: #1da1f2;
+    }
+    
+    .pending-tweets {
+      max-height: 400px;
+      overflow-y: auto;
+      margin-bottom: 16px;
+    }
+    
+    .tweet-item {
+      padding: 12px;
+      border: 1px solid #cfd9de;
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+    
+    .tweet-text {
+      margin-bottom: 8px;
+      word-break: break-word;
+    }
+    
+    .section-title {
+      font-size: 12px;
+      color: #536471;
+      margin-bottom: 4px;
+    }
+    
+    .tweet-images {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 8px;
+    }
+    
+    .tweet-images img {
+      width: 60px;
+      height: 60px;
+      object-fit: cover;
+      border-radius: 4px;
+    }
+    
+    .tweet-links {
+      margin-bottom: 8px;
+    }
+    
+    .link-item {
+      display: inline-block;
+      padding: 2px 6px;
+      background: #f7f7f7;
+      border-radius: 4px;
+      font-size: 12px;
+      color: #1da1f2;
+      text-decoration: none;
+      margin-right: 4px;
+      margin-bottom: 4px;
+    }
+    
+    .link-item:hover {
+      background: #e8e8e8;
+    }
+    
+    .tweet-time {
+      font-size: 12px;
+      color: #536471;
+    }
+    
+    .action-buttons {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    
+    button {
+      padding: 8px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      flex: 1;
+    }
+    
+    .post-button {
+      background-color: #1da1f2;
+      color: white;
+    }
+    
+    .post-button:hover {
+      background-color: #1991db;
+    }
+    
+    .post-button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+    
+    .delete-button {
+      background-color: #f4212e;
+      color: white;
+    }
+    
+    .delete-button:hover {
+      background-color: #dc1e29;
+    }
+    
+    .no-tweets {
+      text-align: center;
+      color: #536471;
+      padding: 20px;
+    }
+    
+    .clear-button {
+      width: 100%;
+      padding: 8px;
+      margin-top: 12px;
+      background-color: #e0245e;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    
+    .clear-button:hover {
+      background-color: #c9183f;
+    }
+    
+    .clear-button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+  <h2>待发送推文</h2>
+  <div id="pendingTweets" class="pending-tweets">
+    <!-- 推文列表将通过 JavaScript 动态添加 -->
+  </div>
+  <button id="clearAllButton" class="clear-button">清空所有数据</button>
+  <script src="popup.js"></script>
+</body>
+</html> 

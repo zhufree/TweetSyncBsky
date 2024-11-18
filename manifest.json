@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "TweetSync for Bluesky",
+  "version": "1.0",
+  "description": "将Twitter帖子同步到Bluesky的Chrome扩展",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://twitter.com/*",
+    "https://x.com/*",
+    "https://bsky.app/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://twitter.com/*", "https://x.com/*"],
+      "js": ["twitter-content.js"],
+      "run_at": "document_end"
+    },
+    {
+      "matches": ["https://bsky.app/*"],
+      "js": ["bluesky-content.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  }
+} 
