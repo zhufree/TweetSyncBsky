@@ -21,6 +21,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       .catch(error => sendResponse({ success: false, error: error.message }));
     return true; // 保持消息通道开启以进行异步响应
   }
+  if (request.type === 'DELETE_PUBLISHED_TWEET') {
+    deletePublishedTweet(request.data);
+  }
 });
 
 // 处理推文同步
@@ -45,6 +48,23 @@ async function handleTweetSync(tweetData) {
   }
 }
 
+// 删除已发布的推文
+async function deletePublishedTweet(data) {
+  try {
+    const { pendingTweets } = await chrome.storage.local.get('pendingTweets');
+    if (!pendingTweets) return;
+    
+    // 找到并删除已发布的推文
+    const index = pendingTweets.findIndex(tweet => tweet.tweetId === data.tweetId);
+    if (index !== -1) {
+      pendingTweets.splice(index, 1);
+      await chrome.storage.local.set({ pendingTweets });
+      console.log('[TweetSync Background] 已删除发布的推文:', data.tweetId);
+    }
+  } catch (error) {
+    console.error('[TweetSync Background] 删除已发布推文失败:', error);
+  }
+}
 
 // 更新扩展图标状态
 function updateExtensionIcon(isEnabled) {

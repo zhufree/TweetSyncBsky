@@ -30,17 +30,98 @@ function formatLinks(links) {
   
   return `
     <div class="tweet-links">
-      <div class="section-title">链接：</div>
-      ${externalLinks.map(link => `
-        <a href="${link.url}" target="_blank" class="link-item" title="${link.text}">
-          ${new URL(link.url).hostname}
-        </a>
+      <div class="section-title">Links:</div>
+      ${externalLinks.map(link => {
+        try {
+          // 确保 URL 是完整的
+          const url = link.url.startsWith('http') ? link.url : `https://${link.url}`;
+          const hostname = new URL(url).hostname;
+          return `
+            <a href="${url}" target="_blank" class="link-item" title="${link.text}">
+              ${hostname}
+            </a>
+          `;
+        } catch (error) {
+          console.error('[TweetSync Popup] 解析链接失败:', link, error);
+          // 如果 URL 解析失败，直接显示原始文本
+          return `
+            <a href="#" class="link-item invalid" title="Invalid link">
+              ${link.text}
+            </a>
+          `;
+        }
+      }).join('')}
+    </div>
+  `;
+}
+
+// 修改渲染回复的函数，修正路径构建
+function formatReplies(replies, depth = 0, tweetIndex) {
+  if (!replies || replies.length === 0) return '';
+  
+  const indent = depth * 20; // 每层缩进20px
+  
+  return `
+    <div class="tweet-replies" style="margin-left: ${indent}px;">
+      ${replies.map((reply, replyIndex) => `
+        <div class="reply-item" data-tweet-index="${tweetIndex}" data-reply-index="${replyIndex}">
+          <div class="reply-indicator">└</div>
+          <div class="tweet-text">${reply.text}</div>
+          ${reply.images && reply.images.length ? `
+            <div class="tweet-images">
+              ${reply.images.map(img => `<img src="${img}" alt="Tweet image">`).join('')}
+            </div>
+          ` : ''}
+          ${formatLinks(reply.links)}
+          <div class="tweet-time">Added at: ${formatTime(reply.timestamp)}</div>
+          <button class="delete-reply-button" data-tweet-index="${tweetIndex}" data-reply-index="${replyIndex}">
+            Delete Reply
+          </button>
+          ${formatReplies(reply.replies, depth + 1, tweetIndex)}
+        </div>
       `).join('')}
     </div>
   `;
 }
 
-// 渲染待发送推文列表
+// 修改删除回复的函数
+async function deleteReply(tweetIndex, replyIndex) {
+  try {
+    const data = await chrome.storage.local.get('pendingTweets');
+    if (!data || !data.pendingTweets) {
+      console.error('[TweetSync Popup] 无法获取存储的推文数据');
+      showMessage('Failed to delete: Cannot get data', true);
+      return;
+    }
+
+    const pendingTweets = data.pendingTweets;
+    const tweet = pendingTweets[tweetIndex];
+    
+    if (!tweet || !tweet.replies) {
+      console.error('[TweetSync Popup] 无法找到指定的推文或回复');
+      showMessage('Failed to delete: Reply not found', true);
+      return;
+    }
+
+    // 删除指定的回复
+    tweet.replies.splice(replyIndex, 1);
+    
+    // 如果删除后没有回复了，清空回复数组
+    if (tweet.replies.length === 0) {
+      delete tweet.replies;
+    }
+    
+    await chrome.storage.local.set({ pendingTweets });
+    console.log('[TweetSync Popup] 回复已删除，更新后的数据:', pendingTweets);
+    showMessage('Reply deleted');
+    renderPendingTweets();
+  } catch (error) {
+    console.error('[TweetSync Popup] 删除回复失败:', error);
+    showMessage('Failed to delete, please retry', true);
+  }
+}
+
+// 修改渲染推文列表函数中的相关部分
 async function renderPendingTweets() {
   console.log('[TweetSync Popup] 开始渲染推文列表');
   const container = document.getElementById('pendingTweets');
@@ -55,12 +136,12 @@ async function renderPendingTweets() {
     console.log('[TweetSync Popup] 是否在Bluesky页面:', isBskyTab);
     
     if (pendingTweets.length === 0) {
-      container.innerHTML = '<div class="no-tweets">暂无待发送的推文</div>';
+      container.innerHTML = '<div class="no-tweets">No tweets to send</div>';
       return;
     }
     
     container.innerHTML = pendingTweets.map((tweet, index) => `
-      <div class="tweet-item">
+      <div class="tweet-item ${tweet.replies?.length ? 'has-replies' : ''}">
         <div class="tweet-text">${tweet.text}</div>
         ${tweet.images && tweet.images.length ? `
           <div class="tweet-images">
@@ -68,12 +149,13 @@ async function renderPendingTweets() {
           </div>
         ` : ''}
         ${formatLinks(tweet.links)}
-        <div class="tweet-time">添加时间：${formatTime(tweet.timestamp)}</div>
+        <div class="tweet-time">Added at: ${formatTime(tweet.timestamp)}</div>
+        ${formatReplies(tweet.replies, 0, index)}
         <div class="action-buttons">
           <button class="post-button" data-index="${index}" ${!isBskyTab ? 'disabled' : ''}>
-            发布到 Bluesky
+            ${tweet.replies?.length ? 'Post Thread' : 'Post to Bluesky'}
           </button>
-          <button class="delete-button" data-index="${index}">删除</button>
+          <button class="delete-button" data-index="${index}">Delete</button>
         </div>
       </div>
     `).join('');
@@ -90,6 +172,9 @@ async function renderPendingTweets() {
           type: 'POST_TO_BSKY',
           data: tweet
         });
+        
+        // 关闭 popup 窗口
+        window.close();
       });
     });
     
@@ -102,10 +187,21 @@ async function renderPendingTweets() {
       });
     });
     
-    console.log('[TweetSync Popup] 渲染完成');
+    // 修改删除回复按钮的事件监听
+    container.querySelectorAll('.delete-reply-button').forEach(button => {
+      button.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const tweetIndex = parseInt(e.target.dataset.tweetIndex);
+        const replyIndex = parseInt(e.target.dataset.replyIndex);
+        
+        if (confirm('Are you sure to delete this reply? This action cannot be undone.')) {
+          await deleteReply(tweetIndex, replyIndex);
+        }
+      });
+    });
   } catch (error) {
     console.error('[TweetSync Popup] 渲染失败:', error);
-    container.innerHTML = '<div class="error">加载失败，请重试</div>';
+    container.innerHTML = '<div class="error">Failed to load, please retry</div>';
   }
 }
 
@@ -118,15 +214,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const clearButton = document.getElementById('clearAllButton');
   clearButton.addEventListener('click', async () => {
     try {
-      if (confirm('确定要清空所有待发送的推文吗？此操作不可撤销。')) {
+      if (confirm('Are you sure to clear all pending tweets? This action cannot be undone.')) {
         await chrome.storage.local.set({ pendingTweets: [] });
-        console.log('[TweetSync Popup] 所有数据已清空');
-        showMessage('数据已清空');
+        showMessage('Data cleared');
         renderPendingTweets();
       }
     } catch (error) {
       console.error('[TweetSync Popup] 清空数据失败:', error);
-      showMessage('清空数据失败，请重试', true);
+      showMessage('Failed to clear data, please retry', true);
     }
   });
   
@@ -174,4 +269,56 @@ style.textContent = `
     100% { opacity: 0; transform: translate(-50%, -10px); }
   }
 `;
-document.head.appendChild(style); 
+document.head.appendChild(style);
+
+// 添加新的样式
+const additionalStyle = document.createElement('style');
+additionalStyle.textContent = `
+  .tweet-item.has-replies {
+    border-left: 3px solid #1da1f2;
+    padding-left: 12px;
+  }
+  
+  .tweet-replies {
+    margin-top: 8px;
+    border-left: 2px solid #cfd9de;
+  }
+  
+  .reply-item {
+    position: relative;
+    margin: 8px 0;
+    padding: 8px;
+    background: #f7f9f9;
+    border-radius: 4px;
+  }
+  
+  .reply-indicator {
+    position: absolute;
+    left: -12px;
+    color: #536471;
+    font-size: 12px;
+  }
+  
+  .post-button[disabled] {
+    background-color: #ccc;
+    cursor: not-allowed;
+  }
+  
+  .delete-reply-button {
+    background-color: #f4212e;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 12px;
+    cursor: pointer;
+    margin-top: 8px;
+    opacity: 0.8;
+  }
+  
+  .delete-reply-button:hover {
+    opacity: 1;
+  }
+`;
+document.head.appendChild(additionalStyle);
+  
