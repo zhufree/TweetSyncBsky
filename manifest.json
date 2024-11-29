@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "TweetSync for Bluesky",
-  "version": "1.0",
-  "description": "将Twitter帖子同步到Bluesky的Chrome扩展",
+  "name": "Tweet Sync for Bluesky",
+  "version": "0.8.5",
+  "description": "Sync tweets from Twitter to Bluesky",
   "permissions": [
     "storage",
     "activeTab",
@@ -29,6 +29,12 @@
     }
   ],
   "action": {
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_icon": {
+      "128": "icon128.png"
+    }
+  },
+  "icons": {
+    "128": "icon128.png"
   }
 } 

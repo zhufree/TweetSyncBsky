@@ -102,10 +102,16 @@ function extractTweetData(tweetContainer) {
   const textElement = tweetContainer.querySelector('[data-testid="tweetText"]');
   const text = textElement ? textElement.textContent : '';
   
-  const images = Array.from(tweetContainer.querySelectorAll('div[data-testid="tweetPhoto"]>img'))
+  let images = Array.from(tweetContainer.querySelectorAll('div[data-testid="tweetPhoto"]>img'))
     .map(img => img.src)
     .filter(src => src && !src.includes('emoji'));
-  
+  if (images.length == 0) {
+    // check media page: aria-roledescription="carousel"
+    images = Array.from(document.querySelectorAll('div[aria-roledescription="carousel"] img'))
+      .map(img => img.src)
+      .filter(src => src && !src.includes('emoji'));
+  }
+  console.log('[TweetSync] Tweet images:', images);
   const links = Array.from(tweetContainer.querySelectorAll('div[data-testid="tweetText"] a'))
     .map(a => {
       const fullUrl = a.textContent.trim().replace('…', '');
