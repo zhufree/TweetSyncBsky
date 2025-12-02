@@ -51,7 +51,7 @@ async function postToBsky(tweetData) {
 // 发布单条推文
 async function publishSinglePost(tweetData) {
   // 点击发帖按钮打开编辑器
-  const composeButtons = document.querySelectorAll('button[tabindex="0"]');
+  const composeButtons = document.querySelectorAll('button[aria-label="Compose new post"]');
   const composeButton = composeButtons[composeButtons.length - 1];
   if (!composeButton) {
     throw new Error('Failed to find post button');
